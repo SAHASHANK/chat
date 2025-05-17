@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitBot - Your Personal Fitness Assistant</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px 8px 0 0;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chat-box {
+            height: 350px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            line-height: 1.4;
+        }
+        .bot-message {
+            background-color: #e9ecef;
+            float: left;
+            clear: both;
+        }
+        .user-message {
+            background-color: #4CAF50;
+            color: white;
+            float: right;
+            clear: both;
+        }
+        .options-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            clear: both;
+        }
+        .option-button {
+            background-color: #a5d6a7;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+            color: #333;
+        }
+        .option-button:hover {
+            background-color: #81c784;
+        }
+        .input-container {
+            display: flex;
+            margin-top: 10px;
+        }
+        input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin-left: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:hover {
+            background-color: #3e8e41;
+        }
+        .hidden {
+            display: none;
+        }
+        .weight-input {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .weight-input input {
+            margin: 10px 0;
+        }
+        .weight-category {
+            font-weight: bold;
+            margin-top: 10px;
+            color: #4CAF50;
+        }
+        .clear-chat {
+            background-color: #f8f9fa;
+            color: #495057;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+        }
+        .clear-chat:hover {
+            background-color: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FitBot</h1>
+            <p>Your Personal Fitness Assistant</p>
+        </header>
+        
+        <div class="chat-container">
+            <button class="clear-chat" onclick="clearChat()">New Conversation</button>
+            <div class="chat-box" id="chatBox"></div>
+            
+            <div class="options-container" id="optionsContainer"></div>
+            
+            <div class="weight-input hidden" id="weightInput">
+                <label for="weight">Enter your weight (kg):</label>
+                <input type="number" id="weight" min="30" max="200">
+                <button onclick="submitWeight()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let userState = {
+            weight: null,
+            weightCategory: null,
+            dietPlan: null,
+            selectedExercise: null,
+            currentStep: 'greeting'
+        };
+
+        // Weight categories
+        const weightCategories = {
+            underweight: { min: 0, max: 50, label: "Underweight" },
+            normal: { min: 50, max: 70, label: "Normal Weight" },
+            overweight: { min: 70, max: 90, label: "Overweight" },
+            obese: { min: 90, max: Infinity, label: "Obese" }
+        };
+
+        // Diet plans based on weight category
+        const dietPlans = {
+            underweight: {
+                dailyCalories: "2500-3000 calories daily",
+                macros: "50% carbs, 25% protein, 25% fat",
+                mealPlan: [
+                    "Breakfast: Oatmeal with nuts, fruits, and protein shake",
+                    "Snack: Greek yogurt with honey and granola",
+                    "Lunch: Chicken/fish with rice and vegetables",
+                    "Snack: Peanut butter sandwich and milk",
+                    "Dinner: Pasta with meat sauce and side salad",
+                    "Before bed: Protein shake with banana and milk"
+                ],
+                supplements: "Consider weight gainer shakes, protein supplements, and vitamin D"
+            },
+            normal: {
+                dailyCalories: "2000-2500 calories daily",
+                macros: "40% carbs, 30% protein, 30% fat",
+                mealPlan: [
+                    "Breakfast: Eggs with whole grain toast and avocado",
+                    "Snack: Apple with a small handful of nuts",
+                    "Lunch: Grilled chicken salad with olive oil dressing",
+                    "Snack: Greek yogurt with berries",
+                    "Dinner: Lean protein with quinoa and roasted vegetables",
+                    "Optional snack: Small protein shake or cottage cheese"
+                ],
+                supplements: "Multivitamin, omega-3, and possible protein supplement"
+            },
+            overweight: {
+                dailyCalories: "1800-2000 calories daily",
+                macros: "30% carbs, 40% protein, 30% fat",
+                mealPlan: [
+                    "Breakfast: Protein smoothie with spinach and berries",
+                    "Snack: Hard-boiled eggs or string cheese",
+                    "Lunch: Large salad with lean protein and light dressing",
+                    "Snack: Vegetable sticks with hummus",
+                    "Dinner: Grilled fish with steamed vegetables",
+                    "Optional: Herbal tea or water with lemon"
+                ],
+                supplements: "Fiber supplement, green tea extract, protein powder"
+            },
+            obese: {
+                dailyCalories: "1500-1800 calories daily",
+                macros: "20% carbs, 40% protein, 40% fat",
+                mealPlan: [
+                    "Breakfast: Egg whites with vegetables",
+                    "Snack: Small protein shake or handful of nuts",
+                    "Lunch: Lean protein with large portion of vegetables",
+                    "Snack: Celery with small amount of nut butter",
+                    "Dinner: Baked chicken or fish with leafy greens",
+                    "Evening: Herbal tea or water with lemon"
+                ],
+                supplements: "Fiber supplement, omega-3, possibly CLA under medical supervision"
+            }
+        };
+
+        // Exercise plans based on weight category
+        const exercisePlans = {
+            underweight: [
+                {
+                    name: "Strength Training",
+                    description: "Focus on compound exercises to build muscle mass",
+                    routine: [
+                        "3-4 days per week of resistance training",
+                        "Focus on compound movements: squats, deadlifts, bench press, rows",
+                        "4-5 sets of 6-12 reps with moderate to heavy weights",
+                        "Rest periods: 60-90 seconds between sets",
+                        "Limited cardio: 1-2 short sessions weekly for heart health"
+                    ],
+                    tips: "Prioritize progressive overload by gradually increasing weights. Ensure adequate rest between workouts (48 hours for muscle groups)."
+                },
+                {
+                    name: "Bodyweight Training",
+                    description: "Build functional strength without equipment",
+                    routine: [
+                        "3-4 days per week of bodyweight training",
+                        "Focus on push-ups, pull-ups, dips, squats, lunges",
+                        "3-4 sets until near failure",
+                        "Add weight vest or backpack for extra resistance as you progress",
+                        "Limited low-impact cardio like swimming or cycling"
+                    ],
+                    tips: "Focus on perfect form before adding resistance. Incorporate protein-rich meals within 30 minutes after workout."
+                }
+            ],
+            normal: [
+                {
+                    name: "Balanced Fitness",
+                    description: "Mixed strength and cardio for overall fitness",
+                    routine: [
+                        "Strength training: 2-3 days per week (full body or split routine)",
+                        "Cardio: 2-3 days per week (mix of HIIT and moderate intensity)",
+                        "Flexibility work: Daily stretching or weekly yoga session",
+                        "Active recovery: Walking or light activity on rest days"
+                    ],
+                    tips: "Alternate between strength and cardio days. Keep workouts varied to prevent plateaus."
+                },
+                {
+                    name: "Functional Fitness",
+                    description: "Improve everyday movement patterns and core strength",
+                    routine: [
+                        "3-4 days per week of circuit training",
+                        "Focus on functional movements like kettlebell swings, medicine ball throws, TRX training",
+                        "Core-strengthening exercises in every session",
+                        "1-2 days of flexibility work (yoga or pilates)",
+                        "Active recovery days with walking or swimming"
+                    ],
+                    tips: "Focus on movement quality rather than lifting heavy. Include balance training in your routine."
+                }
+            ],
+            overweight: [
+                {
+                    name: "Weight Loss Focus",
+                    description: "Balanced program for healthy weight loss",
+                    routine: [
+                        "Cardio: 3-4 sessions per week (start with 20-30 minutes, build to 45-60)",
+                        "Strength training: 2-3 days per week (full body, higher reps)",
+                        "Daily walking: Aim for 7,000-10,000 steps",
+                        "Active recovery: Light yoga or stretching on rest days"
+                    ],
+                    tips: "Focus on consistency rather than intensity at first. Gradually increase duration before increasing intensity."
+                },
+                {
+                    name: "Low Impact Program",
+                    description: "Joint-friendly exercises for weight loss",
+                    routine: [
+                        "Swimming or water aerobics: 2-3 days per week",
+                        "Stationary bike or elliptical: 2-3 days per week",
+                        "Strength training with resistance bands or machines: 2 days per week",
+                        "Gentle yoga or stretching: 1-2 days per week",
+                        "Daily walking: Start with 15-20 minutes, gradually increase"
+                    ],
+                    tips: "Focus on longer, moderate-intensity sessions rather than high intensity. Monitor heart rate to stay in fat-burning zone."
+                }
+            ],
+            obese: [
+                {
+                    name: "Beginner Mobility Program",
+                    description: "Start safely with focus on movement quality",
+                    routine: [
+                        "Daily walking: Start with 10 minutes, 3 times daily, gradually increase",
+                        "Water exercises: 2-3 days per week (swimming or water walking)",
+                        "Chair exercises: 2-3 days per week (seated strength movements)",
+                        "Gentle stretching: Daily, focusing on major muscle groups",
+                        "Balance exercises: Every other day to improve stability"
+                    ],
+                    tips: "Start with very short sessions and gradually increase duration. Focus on consistency rather than intensity."
+                },
+                {
+                    name: "Medically Supervised Program",
+                    description: "Work with healthcare providers for safe progress",
+                    routine: [
+                        "Structured walking program (possibly with physical therapist)",
+                        "Supervised resistance training 2 days per week",
+                        "Recumbent bike or other low-impact cardio: 2-3 days per week",
+                        "Flexibility work under guidance",
+                        "Daily movement breaks: 5 minutes of gentle movement every hour"
+                    ],
+                    tips: "Work with medical professionals to design an appropriate program. Monitor blood pressure and heart rate regularly."
+                }
+            ]
+        };
+
+        // Initialize chat when page loads
+        window.onload = function() {
+            initializeChat();
+        };
+
+        function initializeChat() {
+            addBotMessage("👋 Hello! I'm FitBot, your personal fitness assistant. I can help you with diet and exercise recommendations based on your weight.");
+            showOptions(["Get Started", "How does this work?"]);
+        }
+
+        function clearChat() {
+            document.getElementById('chatBox').innerHTML = '';
+            userState = {
+                weight: null,
+                weightCategory: null,
+                dietPlan: null,
+                selectedExercise: null,
+                currentStep: 'greeting'
+            };
+            initializeChat();
+        }
+
+        function addBotMessage(message) {
+            const chatBox = document.getElementById('chatBox');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            messageDiv.innerHTML = message;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addUserMessage(message) {
+            const chatBox = document.getElementById('chatBox');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user-message';
+            messageDiv.innerText = message;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function showOptions(options) {
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.className = 'option-button';
+                button.innerText = option;
+                button.onclick = function() {
+                    handleOptionClick(option);
+                };
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function handleOptionClick(option) {
+            addUserMessage(option);
+            document.getElementById('optionsContainer').innerHTML = '';
+            
+            switch(userState.currentStep) {
+                case 'greeting':
+                    if (option === 'Get Started') {
+                        askForWeight();
+                    } else if (option === 'How does this work?') {
+                        explainProcess();
+                    }
+                    break;
+                case 'main_menu':
+                    handleMainMenuOption(option);
+                    break;
+                case 'diet_menu':
+                    handleDietMenuOption(option);
+                    break;
+                case 'exercise_menu':
+                    handleExerciseMenuOption(option);
+                    break;
+                case 'exercise_details':
+                    userState.currentStep = 'main_menu';
+                    showMainMenu();
+                    break;
+                case 'diet_details':
+                    userState.currentStep = 'diet_menu';
+                    showDietMenu();
+                    break;
+                default:
+                    showMainMenu();
+            }
+        }
+
+        function explainProcess() {
+            addBotMessage("Here's how FitBot works:<br><br>1. You'll provide your weight, and I'll determine your weight category.<br>2. Based on your category, I'll offer personalized diet and exercise options.<br>3. You can explore detailed meal plans, nutritional guidance, and exercise routines.<br><br>All recommendations are generalized and should be adjusted for your specific needs and health conditions.");
+            showOptions(["Get Started", "Exit"]);
+        }
+
+        function askForWeight() {
+            addBotMessage("Please enter your weight in kilograms:");
+            document.getElementById('weightInput').classList.remove('hidden');
+            userState.currentStep = 'weight_input';
+        }
+
+        function submitWeight() {
+            const weightInput = document.getElementById('weight');
+            const weight = parseFloat(weightInput.value);
+            
+            if (isNaN(weight) || weight < 30 || weight > 200) {
+                addBotMessage("Please enter a valid weight between 30kg and 200kg.");
+                return;
+            }
+            
+            document.getElementById('weightInput').classList.add('hidden');
+            addUserMessage(weight + " kg");
+            
+            userState.weight = weight;
+            determineWeightCategory();
+            showMainMenu();
+        }
+
+        function determineWeightCategory() {
+            const weight = userState.weight;
+            
+            if (weight < weightCategories.underweight.max) {
+                userState.weightCategory = 'underweight';
+            } else if (weight < weightCategories.normal.max) {
+                userState.weightCategory = 'normal';
+            } else if (weight < weightCategories.overweight.max) {
+                userState.weightCategory = 'overweight';
+            } else {
+                userState.weightCategory = 'obese';
+            }
+            
+            userState.dietPlan = dietPlans[userState.weightCategory];
+        }
+
+        function showMainMenu() {
+            const category = weightCategories[userState.weightCategory].label;
+            addBotMessage(Based on your weight (${userState.weight} kg), your category is: <span class="weight-category">${category}</span><br><br>What would you like to learn about?);
+            showOptions(["Diet Recommendations", "Exercise Options", "Change Weight"]);
+            userState.currentStep = 'main_menu';
+        }
+
+        function handleMainMenuOption(option) {
+            switch(option) {
+                case 'Diet Recommendations':
+                    showDietMenu();
+                    break;
+                case 'Exercise Options':
+                    showExerciseOptions();
+                    break;
+                case 'Change Weight':
+                    askForWeight();
+                    break;
+                default:
+                    showMainMenu();
+            }
+        }
+
+        function showDietMenu() {
+            addBotMessage(Let's talk about diet recommendations for your ${weightCategories[userState.weightCategory].label} category. What specific information would you like?);
+            showOptions(["Daily Calories & Macros", "Meal Plan", "Supplements", "Back to Main Menu"]);
+            userState.currentStep = 'diet_menu';
+        }
+
+        function handleDietMenuOption(option) {
+            const dietPlan = dietPlans[userState.weightCategory];
+            
+            switch(option) {
+                case 'Daily Calories & Macros':
+                    addBotMessage(`<strong>Recommended Daily Intake:</strong><br>
+                        ${dietPlan.dailyCalories}<br>
+                        <strong>Macronutrient Distribution:</strong><br>
+                        ${dietPlan.macros}<br><br>
+                        Remember that these are general guidelines. Your individual needs may vary based on activity level, age, and specific health conditions.`);
+                    showOptions(["Back to Diet Menu", "Back to Main Menu"]);
+                    userState.currentStep = 'diet_details';
+                    break;
+                case 'Meal Plan':
+                    let mealPlanHtml = <strong>Suggested Meal Plan:</strong><br><ul>;
+                    dietPlan.mealPlan.forEach(meal => {
+                        mealPlanHtml += <li>${meal}</li>;
+                    });
+                    mealPlanHtml += </ul>This meal plan provides a balanced approach to meet your nutritional needs. Adjust portions based on hunger and energy levels.;
+                    
+                    addBotMessage(mealPlanHtml);
+                    showOptions(["Back to Diet Menu", "Back to Main Menu"]);
+                    userState.currentStep = 'diet_details';
+                    break;
+                case 'Supplements':
+                    addBotMessage(`<strong>Supplement Recommendations:</strong><br>
+                        ${dietPlan.supplements}<br><br>
+                        <em>Important: Consult with a healthcare provider before starting any supplement regimen, especially if you have health conditions or take medications.</em>`);
+                    showOptions(["Back to Diet Menu", "Back to Main Menu"]);
+                    userState.currentStep = 'diet_details';
+                    break;
+                case 'Back to Main Menu':
+                    showMainMenu();
+                    break;
+                default:
+                    showDietMenu();
+            }
+        }
+
+        function showExerciseOptions() {
+            const exercises = exercisePlans[userState.weightCategory];
+            addBotMessage(Here are exercise options recommended for your ${weightCategories[userState.weightCategory].label} category. Choose one to learn more:);
+            
+            const options = exercises.map(exercise => exercise.name);
+            options.push("Back to Main Menu");
+            
+            showOptions(options);
+            userState.currentStep = 'exercise_menu';
+        }
+
+        function handleExerciseMenuOption(option) {
+            if (option === "Back to Main Menu") {
+                showMainMenu();
+                return;
+            }
+            
+            const exercises = exercisePlans[userState.weightCategory];
+            const selectedExercise = exercises.find(ex => ex.name === option);
+            
+            if (selectedExercise) {
+                let routineHtml = <ul>;
+                selectedExercise.routine.forEach(item => {
+                    routineHtml += <li>${item}</li>;
+                });
+                routineHtml += </ul>;
+                
+                addBotMessage(`<strong>${selectedExercise.name}</strong><br>
+                    ${selectedExercise.description}<br><br>
+                    <strong>Recommended Routine:</strong><br>
+                    ${routineHtml}
+                    <strong>Tips:</strong><br>
+                    ${selectedExercise.tips}`);
+                
+                showOptions(["Back to Exercise Options", "Back to Main Menu"]);
+                userState.currentStep = 'exercise_details';
+            } else {
+                showExerciseOptions();
+            }
+        }
+
+        function handleExerciseDetailsOption(option) {
+            if (option === "Back to Exercise Options") {
+                showExerciseOptions();
+            } else {
+                showMainMenu();
+            }
+        }
+    </script>
+</body>
+</html>
